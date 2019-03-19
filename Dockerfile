@@ -5,6 +5,7 @@ from ubuntu:18.04
 RUN apt update
 RUN apt install -y tree vim curl python3 python3-pip git
 
+# add metabase-user user as we don't want to run everything as root
 RUN useradd -ms /bin/bash metabase-user
 
 # switch back to root user

@@ -91,12 +91,15 @@ Inside the container
 You will enter the running image as the root user. You may need to start the postgres server again.
 
 ``su postgres``
+
 ``service postgresql start``
+
 ``exit``
 
 Then you will want to switch to the metabase-user (as you cannot run pytest as the root user)
 
 ``su metabase-user``
+
 ``cd /home/metabase-user/adrf-metabase``
 
 Run the database create tables
