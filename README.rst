@@ -76,14 +76,14 @@ Build the container
 
 Inside the home directory for the repo ``adrf-metabase``, run::
 
-``docker build -t metabase .``
+	docker build -t metabase .
 
 Enter built image
 -----------------
 
 Get the image id with ``docker image ls`` and run::
 
-``docker run -it {image_id} /bin/bash``
+	docker run -it {image_id} /bin/bash
 
 Inside the container
 --------------------
@@ -113,7 +113,7 @@ If everything runs fine (alembic will not provide any output, pytests might have
 
 You should see the output::
 
-``data_table_id is 1 for table data.example``
+	data_table_id is 1 for table data.example
 
 
 

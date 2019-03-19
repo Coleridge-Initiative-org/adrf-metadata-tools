@@ -10,7 +10,7 @@ RUN useradd -ms /bin/bash metabase-user
 # switch back to root user
 USER root 
 
-# clone the repo
+# clone the repo - for now we'll use the version with chapinhall as it's the most up-to-date
 RUN git clone https://github.com/chapinhall/adrf-metabase /home/metabase-user/adrf-metabase
 
 # Install requirements.txt
