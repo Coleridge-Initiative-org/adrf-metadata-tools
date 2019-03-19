@@ -65,3 +65,57 @@ Under the ``./docs/`` directory, run::
 
     make html
     
+
+
+---------------------
+Optional Docker Usage
+---------------------
+
+Build the container
+-------------------
+
+Inside the home directory for the repo ``adrf-metabase``, run::
+
+``docker build -t metabase .``
+
+Enter built image
+-----------------
+
+Get the image id with ``docker image ls`` and run::
+
+``docker run -it {image_id} /bin/bash``
+
+Inside the container
+--------------------
+
+You will enter the running image as the root user. You may need to start the postgres server again.
+
+``su postgres``
+``service postgresql start``
+``exit``
+
+Then you will want to switch to the metabase-user (as you cannot run pytest as the root user)
+
+``su metabase-user``
+``cd /home/metabase-user/adrf-metabase``
+
+Run the database create tables
+
+``alembic upgrade head``
+
+Then run the pytests
+
+``pytest tests/``
+
+If everything runs fine (alembic will not provide any output, pytests might have some warnings, but should not have errors), run ``example.py``
+
+``python3 example.py``
+
+You should see the output::
+
+``data_table_id is 1 for table data.example``
+
+
+
+
+
