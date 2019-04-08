@@ -48,7 +48,7 @@ RUN service postgresql start
 # Switch to metabase-user to set up the pgpass file for testing
 
 USER metabase-user
-WORKDIR /home/metabase-users
+WORKDIR /home/metabase-user
 RUN echo "localhost:5432:postgres:metaadmin:imalittleteapot" > ~/.pgpass
 RUN chmod 600 ~/.pgpass
 
