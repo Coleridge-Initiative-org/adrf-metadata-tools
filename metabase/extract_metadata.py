@@ -3,6 +3,7 @@
 import getpass
 
 import psycopg2
+import psycopg2.extras
 from psycopg2 import sql
 
 from . import settings
@@ -27,7 +28,7 @@ class ExtractMetadata():
         self.data_conn.autocommit = True
         self.data_cur = self.data_conn.cursor()
 
-    def process_table(self, categorical_threshold=10,
+    def process_table(self, categorical_threshold=10, type_overrides={},
                       date_format='YYYY-MM-DD'):
         """Update the metabase with metadata from this Data Table."""
 
@@ -40,7 +41,8 @@ class ExtractMetadata():
                     schema_name,
                     table_name,
                     categorical_threshold,
-                    date_format,
+                    # date_format,
+                    type_overrides,
                 )
 
         self.data_cur.close()
@@ -111,7 +113,7 @@ class ExtractMetadata():
         # https://github.com/chapinhall/adrf-metabase/pull/8#discussion_r265339190
 
     def _get_column_level_metadata(self, metabase_cur, schema_name, table_name,
-                                   categorical_threshold, date_format):
+            categorical_threshold, date_format, type_overrides):
         """Extract column level metadata and store it in the metabase.
 
         Process columns one by one, identify or infer type, update Column Info
@@ -122,33 +124,45 @@ class ExtractMetadata():
         column_names = self.__get_column_names(schema_name, table_name)
 
         for col_name in column_names:
-            column_data = self.__get_column_type(
-                schema_name,
-                table_name,
-                col_name,
-                categorical_threshold,
-                date_format,
-            )
+            column_results = self.__get_column_type(schema_name,
+                                                    table_name,
+                                                    col_name,
+                                                    categorical_threshold)
+            if col_name in type_overrides:
+                column_type = type_overrides[col_name]
+                if column_type in ['numeric', 'date']:
+                    msg = ('Invalid type override. Column {} cannot be '
+                           'converted to type {}').format(
+                               col_name,
+                               column_type)
+                    raise ValueError(msg)
+                if column_type == 'text':
+                    column_data = [str(i) for i in column_results.data]
+                else:
+                    column_data = column_results.data
+            else:
+                column_type = column_results.type
+                column_data = column_results.data
 
-            if column_data.type == 'numeric':
+            if column_type == 'numeric':
                 self.__update_numeric_metadata(
                     metabase_cur,
-                    col_name, column_data.data)
-            elif column_data.type == 'text':
+                    col_name, column_data)
+            elif column_type == 'text':
                 self.__update_text_metadata(
                     metabase_cur,
                     col_name,
-                    column_data.data)
-            elif column_data.type == 'date':
+                    column_data)
+            elif column_type == 'date':
                 self.__update_date_metadata(
                     metabase_cur,
                     col_name,
-                    column_data.data)
-            elif column_data.type == 'code':
+                    column_data)
+            elif column_type == 'code':
                 self.__update_code_metadata(
                     metabase_cur,
                     col_name,
-                    column_data.data)
+                    column_data)
             else:
                 raise ValueError('Unknown column type')
 
@@ -278,7 +292,6 @@ class ExtractMetadata():
 
         Extract metadata from a categorial columns and store metadata in Column
         Info and Code Frequency. Update relevant audit fields.
-
         """
         # TODO: modify categorical_threshold to take percentage arguments.
 
@@ -288,3 +301,36 @@ class ExtractMetadata():
             col_data,
             self.data_table_id,
         )
+
+    def export_table_metadata(self, output_filepath):
+        """
+        Export GMETA (metadata in JSON format) for a processed table given
+        data_table_id.
+
+        """
+        with psycopg2.connect(
+            self.metabase_connection_string
+                ) as metabase_conn:
+            with metabase_conn.cursor(
+                cursor_factory=psycopg2.extras.DictCursor
+                    ) as metabase_cur:
+
+                table_gmeta_fields_dict = extract_metadata_helper.\
+                    select_table_level_gmeta_fields(
+                        metabase_cur,
+                        self.data_table_id,
+                    )
+
+                column_gmeta_fields_dict = extract_metadata_helper.\
+                    select_column_level_gmeta_fields(
+                        metabase_cur,
+                        self.data_table_id,
+                    )
+
+        extract_metadata_helper.export_gmeta_in_json(
+            table_gmeta_fields_dict,
+            column_gmeta_fields_dict,
+            output_filepath,
+        )
+
+        print('Exported GMETA to', output_filepath)
