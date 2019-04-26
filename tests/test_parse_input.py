@@ -1,6 +1,8 @@
 """
 Tests for parse_input.py
 
+TODO: Shen 2019-04-23
+  - Verify the validity of the configurations.
 """
 
 import collections
@@ -18,9 +20,10 @@ def test_parse_file():
     assert 'schema_1' == parser.schema
     assert 'table_1' == parser.table
     assert 10 == parser.categorical_threshold
-    assert 'YYYY-MM' == parser.date_format
+    assert 'YYYY-MM-DD' == parser.date_format['col3']
     assert "text" == parser.type_overrides['col1']
     assert "categorical" == parser.type_overrides['col2']
+    assert 'gmeta_1.json' == parser.gmeta_output
 
 
 def test_parse_command_line_args_table_schema():

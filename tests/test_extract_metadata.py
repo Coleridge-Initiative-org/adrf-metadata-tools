@@ -324,82 +324,6 @@ def test_get_column_level_metadata_code(
     assert expected == all_frequencies
 
 
-#   Tests for date_format from JSON config file
-# =========================================================================
-
-# TODO: revisit this test later. `TO_DATE()` will not raise error even if 
-# date_format does not apply. 
-
-@pytest.fixture
-def setup_date_as_string(setup_module, request):
-    engine = setup_module.engine
-
-    engine.execute("""
-        INSERT INTO metabase.data_table (data_table_id, file_table_name) VALUES
-            (1, 'data.date_as_string');
-
-        CREATE TABLE data.date_as_string
-            (c_date TEXT);
-
-        INSERT INTO data.date_as_string (c_date) VALUES
-            ('2018-01-01'),
-            ('ABCD-EF'),    -- TODO: Replace with a date in other format
-            (NULL);
-    """)
-
-    def teardown_date_as_string():
-        engine.execute("""
-            TRUNCATE TABLE metabase.data_table CASCADE;
-            DROP TABLE data.date_as_string;
-        """)
-
-    request.addfinalizer(teardown_date_as_string)
-
-
-# def test_get_column_level_metadata_date_as_string(
-#         setup_module,
-#         setup_date_as_string):
-#     """
-#     When date does not correspond to date_format, treat that column as TEXT.
-#     """
-#     extract.process_table(categorical_threshold=0, date_format='YYYY-MM-DD')
-
-    # engine = setup_module.engine    
-    # results = engine.execute("""
-    #     SELECT
-
-    # engine = setup_module.engine
-    # results = engine.execute("""
-    #         SELECT
-    #         data_table_id,
-    #         column_name,
-    #         max_length,
-    #         min_length,
-    #         updated_by,
-    #         date_last_updated
-    #     FROM metabase.text_column
-    # """).fetchall()[0]
-
-    # assert 1 == results['data_table_id']
-    # assert 'c_date' == results['column_name']
-    # assert 10 == results['max_length']
-    # assert 7 == results['min_length']
-    # assert isinstance(results['updated_by'], str)
-    # assert isinstance(results['date_last_updated'], datetime.datetime)
-    #         median_length,
-    #         updated_by,
-    #         date_last_updated
-    #     FROM metabase.text_column
-    # """).fetchall()
-
-    # assert 2 == len(results)
-    # text_columns = (results[0]['column_name'], results[1]['column_name'])
-
-    # assert 'c_date' in text_columns
-
-
-
-
 def test_get_column_level_metadata_type_overrides_text(
         setup_module, setup_get_column_level_metadata):
     """Test type overrides when code overrides text."""
@@ -607,3 +531,125 @@ def test_get_column_level_metadata_invalid_override(
         extract.process_table(
             categorical_threshold=2,
             type_overrides=type_overrides)
+
+
+# Tests for `date_format_dict` in `extract_metadata_helper.is_date()`
+# =========================================================================
+
+@pytest.fixture
+def setup_date_format(setup_module, request):
+    engine = setup_module.engine
+
+    engine.execute("""
+        INSERT INTO metabase.data_table (data_table_id, file_table_name) VALUES
+            (1, 'data.test_date_format');
+
+        CREATE TABLE data.test_date_format (
+            c_date_text     TEXT,
+            c_date_text_2   TEXT,
+            c_date_date     DATE,
+            c_date_invalid  TEXT,
+            c_date_null     TEXT
+        );
+
+        INSERT INTO data.test_date_format VALUES
+            ('2019-01-11', '2019-01-11', '2019-01-11', 'ABCD-EF-GH', NULL)
+        ;
+    """)
+
+    def teardown_date_format():
+        engine.execute("""
+            TRUNCATE TABLE metabase.data_table CASCADE;
+            DROP TABLE data.test_date_format;
+        """)
+
+    request.addfinalizer(teardown_date_format)
+
+
+def test_get_column_level_metadata_date_format_detect_by_default(
+        setup_module, setup_date_format):
+    """
+    If date format is not specified at all, Metabase should try to detect
+    which columns are like dates.
+    """
+
+    with patch('metabase.extract_metadata.settings', setup_module.mock_params):
+        extract = extract_metadata.ExtractMetadata(data_table_id=1)
+
+    extract.process_table(
+        categorical_threshold=0,
+        date_format_dict={},
+    )
+
+    engine = setup_module.engine
+    results = engine.execute("""
+        SELECT * FROM metabase.column_info WHERE data_type = 'date';
+    """).fetchall()
+
+    date_column_names_set = set(v['column_name'] for v in results)
+
+    assert 'c_date_invalid' not in date_column_names_set
+    assert {'c_date_text', 'c_date_date'} < date_column_names_set
+
+
+def test_get_column_level_metadata_date_format_partly_specified(
+        setup_module, setup_date_format):
+    """
+    If date format is partly specified, Metabase should try to convert columns
+    whose date format is provided, and use the default date parser for
+    columns whose date format is not provided.
+    """
+
+    with patch('metabase.extract_metadata.settings', setup_module.mock_params):
+        extract = extract_metadata.ExtractMetadata(data_table_id=1)
+
+    extract.process_table(
+        categorical_threshold=0,
+        date_format_dict={
+            'c_date_text': 'YYYY-MM-DD',
+            'c_date_text_2': 'YYYY-DD-MM',
+        },
+    )
+
+    engine = setup_module.engine
+    result = engine.execute("""
+        SELECT * FROM metabase.date_column WHERE column_name = 'c_date_text';
+    """).fetchall()[0]
+
+    assert (datetime.date(2019, 1, 11)
+            == result['min_date']
+            == result['max_date'])
+
+    result = engine.execute("""
+        SELECT * FROM metabase.date_column WHERE column_name = 'c_date_text_2';
+    """).fetchall()[0]
+
+    assert (datetime.date(2019, 11, 1)
+            == result['min_date']
+            == result['max_date'])
+
+    results = engine.execute("""
+        SELECT * FROM metabase.column_info WHERE data_type = 'date';
+    """).fetchall()
+
+    date_column_names_set = set(v['column_name'] for v in results)
+
+    assert 'c_date_date' in date_column_names_set
+
+
+def test_get_column_level_metadata_date_format_wrong_format_treat_as_text(
+        setup_module, setup_date_format):
+    with patch('metabase.extract_metadata.settings', setup_module.mock_params):
+        extract = extract_metadata.ExtractMetadata(data_table_id=1)
+
+    extract.process_table(
+        categorical_threshold=0,
+        date_format_dict={'c_date_invalid': 'YYYY-MM-DD'},
+    )
+
+    engine = setup_module.engine
+    result = engine.execute("""
+        SELECT * FROM metabase.column_info WHERE column_name = 'c_date_invalid'
+    """).fetchall()[0]
+
+    assert 'text' == result['data_type']
