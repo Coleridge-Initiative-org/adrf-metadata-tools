@@ -119,6 +119,15 @@ You should see the output::
 	data_table_id is 1 for table data.example
 
 
+Exiting and Reentering the container
+------------------------------------
 
+Exit the container by typing `exit` to get to the root user shell, then type `exit` again.
 
+Unless you remove the image ( i.e., `docker rmi --force {image_id` ) you can reattach to the image with: 
 
+``docker attach {image_id}``
+
+If it says no running image, just be sure to start it first:
+
+``docker start {image_id}``

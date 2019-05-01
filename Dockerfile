@@ -1,5 +1,11 @@
 from ubuntu:18.04
 
+# following a gpg: keyserver receive failed: Cannot assign requested address
+# error from the postgresql install below, added the following two lines.
+# from here: https://github.com/inversepath/usbarmory-debian-base_image/issues/9
+
+RUN mkdir ~/.gnupg
+RUN echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
 
 # Install the basics
 RUN apt update
