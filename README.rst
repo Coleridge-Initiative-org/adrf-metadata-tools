@@ -54,10 +54,13 @@ The config file contains the following key/value pairs::
         "schema": "",
         "table": "",
         "categorical_threshold": 2,
-        "date_format": "",
         "type_overrides":{  
             "column_name_1": "type_1",
             "column_name_2": "type_2",
+        },
+        "date_format":{
+            "temporal_column_1": "YYYY-MM-DD",
+            "temporal_column_2": "YYYY-DD-MM",
         },
         "gmeta_output": "exported_gmeta.json"
     }
