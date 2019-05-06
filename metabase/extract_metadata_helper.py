@@ -4,6 +4,7 @@
 from collections import namedtuple, Counter
 import getpass
 import json
+import os
 import statistics
 
 import psycopg2
@@ -770,5 +771,12 @@ def export_gmeta_in_json(table_gmeta_dict, column_gmeta_dict, output_filepath):
         }],
     }
 
-    with open(output_filepath, 'w') as output_file:
-        json.dump(output_dict, output_file, indent=4)
+    try:
+        with open(output_filepath, 'w') as output_file:
+            json.dump(output_dict, output_file, indent=4)
+
+    except Exception as e:
+        if os.path.exists(output_filepath):
+            os.remove(output_filepath)
+
+        raise e
