@@ -54,21 +54,26 @@ The config file contains the following key/value pairs::
         "schema": "",
         "table": "",
         "categorical_threshold": 2,
-        "date_format": "",
         "type_overrides":{  
             "column_name_1": "type_1",
             "column_name_2": "type_2",
         },
+        "date_format":{
+            "temporal_column_1": "YYYY-MM-DD",
+            "temporal_column_2": "YYYY-DD-MM",
+        },
         "gmeta_output": "exported_gmeta.json"
     }
 
-- ``schema`` and ``table`` receive the name of the postgres schema and table that we want to extract metadata from
-- ``categorical_threshold`` takes an integer. If the number of unique values in a column is less than or equal to this threshold, the column will be considered as categorical and its metadata will be processed accordingly.
-  - Default to 10 if leave blank
-- ``type_overrides`` takes column name / data type pairs. Data type should be one of the following: ``text``, ``code`` (categorical), ``numeric``, or ``date``. If the type of a column is specified here, Metabase will directly use it and bypass the type-detection process for that column.
-- ``date_format`` takes a string representing the format of values in date columns.
+- ``schema`` and ``table`` receive the name of the postgres schema and table that we want to extract metadata from.
+- ``categorical_threshold`` takes an integer. Default to 10.
+    If the number of unique values in a column is less than or equal to this threshold, the column will be considered as categorical and its metadata will be processed accordingly.
+- ``type_overrides`` takes column name - data type pairs. 
+    If the type of a column is specified here, Metabase will directly use it and bypass the type-detection process for that column. Data type should be one of the following: ``text``, ``code`` (categorical), ``numeric``, or ``date``.
+- ``date_format`` takes column name - date format pairs representing the formatting of date columns.
+    A reference table for date/time formatting can be found at `here <https://www.postgresql.org/docs/8.1/functions-formatting.html#FUNCTIONS-FORMATTING-DATETIME-TABLE>`_. If the format of a temporal column is not specified, Metabase will try to convert it with the detected format. If this process fails or a column cannot be converted into dates with the configured format, that column will be identified as a textual column instead.
 - ``gmeta_output`` takes a string specifying the filepath for metadata output in JSON format (*Gmeta*).
-  - If leave blank, will not export Gmeta.
+    If leave blank, Metabase will not export the metadata after extraction.
 
 -----------
 Tests

@@ -4,6 +4,7 @@
 from collections import namedtuple, Counter
 import getpass
 import json
+import os
 import statistics
 
 import psycopg2
@@ -11,7 +12,7 @@ from psycopg2 import sql
 
 
 def get_column_type(data_cursor, col, categorical_threshold, schema_name,
-                    table_name):
+                    table_name, date_format_dict):
     """Return the column type and the contents of the column."""
 
     col_type = ''
@@ -19,7 +20,8 @@ def get_column_type(data_cursor, col, categorical_threshold, schema_name,
 
     numeric_flag, numeric_data = is_numeric(data_cursor, col, schema_name,
                                             table_name)
-    date_flag, date_data = is_date(data_cursor, col, schema_name, table_name)
+    date_flag, date_data = is_date(data_cursor, col, schema_name, table_name,
+                                   date_format_dict)
     code_flag, code_data = is_code(data_cursor, col, schema_name, table_name,
                                    categorical_threshold)
 
@@ -64,26 +66,60 @@ def is_numeric(data_cursor, col, schema_name, table_name):
     return flag, data
 
 
-def is_date(data_cursor, col, schema_name, table_name):
-    """Return True and contents of column if column is date.
+def is_date(data_cursor, col, schema_name, table_name, date_format_dict):
     """
+    Return True and contents of column if column is date.
 
-    try:
-        data_cursor.execute(
-            sql.SQL("""
-            SELECT {}::DATE FROM {}.{}
-            """).format(
-                sql.Identifier(col),
-                sql.Identifier(schema_name),
-                sql.Identifier(table_name),
+    Note that date format for each column can be configured in the config file.
+    If the format of a temporal column is not specified, Metabase will try to
+    convert the column into dates appropriately. If this process fails or a
+    column cannot be converted into date with the configured date formatting,
+    that column will be identified as a textual column instead.
+    """
+    if col in date_format_dict:
+        try:
+            # TODO: Replace the trial with a rigid date parser
+
+            data_cursor.execute(
+                sql.SQL("""
+                    SELECT
+                        CASE WHEN {} IS NOT NULL THEN TO_DATE({}::TEXT, %s)
+                        -- First convert into TEXT in case that column is
+                        -- in DATE type.
+                        ELSE NULL END
+                    FROM {}.{}
+                """).format(
+                    sql.Identifier(col),
+                    sql.Identifier(col),
+                    sql.Identifier(schema_name),
+                    sql.Identifier(table_name),
+                ),
+                [date_format_dict[col]],
             )
-        )
-        data = [i[0] for i in data_cursor.fetchall()]
-        flag = True
-    except (psycopg2.ProgrammingError, psycopg2.DataError):
-        data_cursor.execute("DROP TABLE IF EXISTS converted_data")
-        data = []
-        flag = False
+            data = [i[0] for i in data_cursor.fetchall()]
+            flag = True
+        except (psycopg2.ProgrammingError, psycopg2.DataError):
+            data = []
+            flag = False
+
+    else:
+        # col not in date_format_dict or date_format_dict is not provided
+        # Try to parse dates with the default method.
+        try:
+            data_cursor.execute(
+                sql.SQL("""
+                    SELECT {}::DATE FROM {}.{}
+                """).format(
+                    sql.Identifier(col),
+                    sql.Identifier(schema_name),
+                    sql.Identifier(table_name),
+                )
+            )
+            data = [i[0] for i in data_cursor.fetchall()]
+            flag = True
+        except (psycopg2.ProgrammingError, psycopg2.DataError):
+            data = []
+            flag = False
 
     return flag, data
 
@@ -569,7 +605,7 @@ def select_categorical_gmeta_fields(metabase_cur, column_id):
     Args:
         metabase_cur
         column_id
-    
+
     Return:
         (Query result object fetched from psycopg2's DictCursor):
             Like a list of dictionaries with column names as keys. An empty
@@ -735,5 +771,12 @@ def export_gmeta_in_json(table_gmeta_dict, column_gmeta_dict, output_filepath):
         }],
     }
 
-    with open(output_filepath, 'w') as output_file:
-        json.dump(output_dict, output_file, indent=4, sort_keys=True)
+    try:
+        with open(output_filepath, 'w') as output_file:
+            json.dump(output_dict, output_file, indent=4)
+
+    except Exception as e:
+        if os.path.exists(output_filepath):
+            os.remove(output_filepath)
+
+        raise e

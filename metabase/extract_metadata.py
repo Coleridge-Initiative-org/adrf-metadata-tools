@@ -28,7 +28,8 @@ class ExtractMetadata():
         self.data_conn.autocommit = True
         self.data_cur = self.data_conn.cursor()
 
-    def process_table(self, categorical_threshold=10, type_overrides={}):
+    def process_table(self, categorical_threshold=10, type_overrides={},
+                      date_format_dict={}):
         """Update the metabase with metadata from this Data Table."""
 
         with psycopg2.connect(self.metabase_connection_string) as conn:
@@ -41,6 +42,7 @@ class ExtractMetadata():
                     table_name,
                     categorical_threshold,
                     type_overrides,
+                    date_format_dict,
                 )
 
         self.data_cur.close()
@@ -110,8 +112,9 @@ class ExtractMetadata():
         # TODO: Update create_by and date_created
         # https://github.com/chapinhall/adrf-metabase/pull/8#discussion_r265339190
 
-    def _get_column_level_metadata(self, metabase_cur, schema_name, table_name,
-                                   categorical_threshold, type_overrides):
+    def _get_column_level_metadata(
+            self, metabase_cur, schema_name, table_name, categorical_threshold,
+            type_overrides, date_format_dict):
         """Extract column level metadata and store it in the metabase.
 
         Process columns one by one, identify or infer type, update Column Info
@@ -122,10 +125,13 @@ class ExtractMetadata():
         column_names = self.__get_column_names(schema_name, table_name)
 
         for col_name in column_names:
-            column_results = self.__get_column_type(schema_name,
-                                                    table_name,
-                                                    col_name,
-                                                    categorical_threshold)
+            column_results = self.__get_column_type(
+                schema_name,
+                table_name,
+                col_name,
+                categorical_threshold,
+                date_format_dict,
+            )
             if col_name in type_overrides:
                 column_type = type_overrides[col_name]
                 if column_type in ['numeric', 'date']:
@@ -219,7 +225,7 @@ class ExtractMetadata():
         return schema_name_table_name_tp
 
     def __get_column_type(self, schema_name, table_name, col,
-                          categorical_threshold):
+                          categorical_threshold, date_format_dict):
         """Identify or infer column type.
 
         Infers the column type.
@@ -234,7 +240,8 @@ class ExtractMetadata():
             col,
             categorical_threshold,
             schema_name,
-            table_name
+            table_name,
+            date_format_dict,
         )
 
         return column_data

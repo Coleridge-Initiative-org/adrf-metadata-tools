@@ -82,6 +82,7 @@ if __name__ == "__main__":
         file_parser.parse(input_file)
         type_overrides = file_parser.type_overrides
         categ_threshold_config = file_parser.categorical_threshold
+        date_format_dict = file_parser.date_format
         gmeta_output = file_parser.gmeta_output
 
     new_id = update_data_table(full_table_name)
@@ -94,7 +95,9 @@ if __name__ == "__main__":
 
     extract.process_table(
         categorical_threshold=categorical_threshold,
-        type_overrides=type_overrides)
+        type_overrides=type_overrides,
+        date_format_dict=date_format_dict,
+    )
 
     # Export metadata as Gmeta in JSON.
     if gmeta_output:
