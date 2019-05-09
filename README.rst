@@ -177,10 +177,10 @@ Exiting and Reentering the container
 
 Exit the container by typing `exit` to get to the root user shell, then type `exit` again.
 
-Unless you remove the image ( i.e., `docker rmi --force {image_id` ) you can reattach to the image with: 
+Unless you remove the image ( i.e., `docker rmi --force {image_id` ) you can reattach to the container with: 
 
-``docker attach {image_id}``
+``docker attach {container_id}``
 
-If it says no running image, just be sure to start it first:
+If it says no running container, just be sure to start it first:
 
-``docker start {image_id}``
+``docker start {container_id}``
