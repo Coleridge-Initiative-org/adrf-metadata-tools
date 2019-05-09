@@ -1,0 +1,13 @@
+{  
+   "schema":"schema_1",
+   "table":"table_1",
+   "categorical_threshold":10,
+   "type_overrides":{  
+       "col1":"text",
+       "col2":"categorical"
+   },
+   "date_format": {
+       "col3": "YYYY-MM-DD"
+   },
+   "gmeta_output": "gmeta_1.json"
+}
