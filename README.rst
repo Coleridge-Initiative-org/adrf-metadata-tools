@@ -108,6 +108,9 @@ To build the documentation locally, first go to the `<docs/>`_ folder and run `s
 
     sphinx-apidoc -o source/ ../metabase --force --separate
 
+
+    make html
+    
 In the sample command above, ``-o source/`` specifies the output directory as ``source/``; ``../metabase`` is our module path; ``--force`` overwrites existing ``rst`` files; ``--separate`` puts documentation for each module on its own page.
 
 Last, documentation can be rendered as HTML with ``make html`` or PDF with ``make latexpdf``.
@@ -115,3 +118,69 @@ Last, documentation can be rendered as HTML with ``make html`` or PDF with ``mak
 Note that latexpdf has some prerequisites that may take some time (> 30 minutes) and space (several GBs) to install. Information about the dependencies can be found on the `LaTexBuilder documentation <http://www.sphinx-doc.org/en/master/usage/builders/index.html#sphinx.builders.latex.LaTeXBuilder>`_ for Linux and `TeX Live <https://tug.org/texlive/windows.html>`_ for Windows.
 
 The outputs can be found under `<docs/build/>`_.
+
+
+---------------------
+Optional Docker Usage
+---------------------
+
+Build the container
+-------------------
+
+Inside the home directory for the repo ``adrf-metabase``, run::
+
+	docker build -t metabase .
+
+Enter built image
+-----------------
+
+Get the image id with ``docker image ls`` and run::
+
+	docker run -it {image_id} /bin/bash
+
+Inside the container
+--------------------
+
+You will enter the running image as the root user. You may need to start the postgres server again.
+
+``su postgres``
+
+``service postgresql start``
+
+``exit``
+
+Then you will want to switch to the metabase-user (as you cannot run pytest as the root user)
+
+``su metabase-user``
+
+``cd /home/metabase-user/adrf-metabase``
+
+Run the database create tables
+
+``alembic upgrade head``
+
+Then run the pytests
+
+``pytest tests/``
+
+If everything runs fine (alembic will not provide any output, pytests might have some warnings, but should not have errors), run ``example.py``
+
+``python3 example.py``
+
+You should see the output::
+
+	data_table_id is 1 for table data.example
+
+
+Exiting and Reentering the container
+------------------------------------
+
+Exit the container by typing `exit` to get to the root user shell, then type `exit` again.
+
+Unless you remove the image ( i.e., `docker rmi --force {image_id` ) you can reattach to the image with: 
+
+``docker attach {image_id}``
+
+If it says no running image, just be sure to start it first:
+
+``docker start {image_id}``
